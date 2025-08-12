@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  Walk         Walk[]
+  Review       Review[]
+  @@map("tb_user")
+}
+
+model Place {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  lat           Float
+  lng           Float
+  address       String?
+  tags          String[]
+  isPetFriendly Boolean   @default(false) @map("is_pet_friendly")
+  ratingAvg     Float?    @map("rating_avg")
+  createdById   String?   @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  Review        Review[]
+  @@map("tb_place")
+}
+
+model Walk {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id])
+  startAt         DateTime @map("start_at")
+  endAt           DateTime? @map("end_at")
+  distanceMeters  Float?   @map("distance_meters")
+  durationSeconds Int?     @map("duration_seconds")
+  // Deprecated: path Json (use WalkPoint instead)
+  path            Json?
+  Points          WalkPoint[]
+  photos          String[]
+  note            String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  @@map("tb_walk")
+}
+
+model WalkPoint {
+  id         String   @id @default(uuid())
+  walkId     String   @map("walk_id")
+  walk       Walk     @relation(fields: [walkId], references: [id])
+  seq        Int
+  lat        Float
+  lng        Float
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@unique([walkId, seq])
+  @@index([walkId, seq])
+  @@map("tb_walk_point")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  placeId   String   @map("place_id")
+  place     Place    @relation(fields: [placeId], references: [id])
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  content   String
+  photos    String[]
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("tb_review")
+}

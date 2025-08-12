@@ -1,0 +1,33 @@
+{
+  "name": "@puppy/shared",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dto": {
+      "types": "./dist/dto.d.ts",
+      "default": "./dist/dto.js"
+    },
+    "./response": {
+      "types": "./dist/response.d.ts",
+      "default": "./dist/response.js"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier -w ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "rimraf": "5.0.7",
+    "typescript": "5.4.5",
+    "eslint": "8.57.0",
+    "prettier": "3.2.5"
+  }
+}

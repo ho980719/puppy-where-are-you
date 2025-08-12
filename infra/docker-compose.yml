@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: puppy_db
+    environment:
+      POSTGRES_USER: puppy
+      POSTGRES_PASSWORD: puppy
+      POSTGRES_DB: puppy
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U puppy"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    container_name: puppy_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+volumes:
+  db_data:
+  redis_data:

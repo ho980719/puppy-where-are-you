@@ -1,0 +1,17 @@
+{
+  "name": "puppy-where-are-you",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "pnpm --filter @puppy/api dev",
+    "dev:mobile": "pnpm --filter @puppy/mobile start",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format"
+  }
+}

@@ -2,10 +2,35 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma.service';
 import { WalkAppendDto, WalkStartDto } from '../dto/walk.dto';
 import { haversine } from '../common/utils/geo';
+import { Observable, Subject } from 'rxjs';
 
 @Injectable()
 export class WalksService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // --- SSE In-memory broadcaster (single instance) ---
+  private channels = new Map<string, Subject<any>>();
+  private channel(walkId: string): Subject<any> {
+    let ch = this.channels.get(walkId);
+    if (!ch) {
+      ch = new Subject<any>();
+      this.channels.set(walkId, ch);
+    }
+    return ch;
+  }
+  observe(walkId: string): Observable<any> {
+    return this.channel(walkId).asObservable();
+  }
+  private emitPoints(walkId: string, fromSeq: number, items: Array<{ seq: number; lat: number; lng: number; recordedAt: Date }>) {
+    if (!items.length) return;
+    this.channel(walkId).next({ type: 'points', fromSeq, items });
+  }
+  private emitEnded(walkId: string) {
+    const ch = this.channel(walkId);
+    ch.next({ type: 'ended' });
+    ch.complete();
+    this.channels.delete(walkId);
+  }
 
   async start(input: WalkStartDto) {
     const { userId, note } = input;
@@ -28,6 +53,7 @@ export class WalksService {
 
     const batchSize = 1000;
     let buffer: { walkId: string; seq: number; lat: number; lng: number; recordedAt: Date }[] = [];
+    const emitted: { seq: number; lat: number; lng: number; recordedAt: Date }[] = [];
     for (const p of input.points) {
       const lat = Number(p.lat);
       const lng = Number(p.lng);
@@ -35,7 +61,9 @@ export class WalksService {
       if (prev) {
         distance += haversine(prev, { lat, lng });
       }
-      buffer.push({ walkId, seq: nextSeq++, lat, lng, recordedAt });
+      const row = { walkId, seq: nextSeq++, lat, lng, recordedAt };
+      buffer.push(row);
+      emitted.push({ seq: row.seq, lat, lng, recordedAt });
       prev = { lat, lng };
 
       if (buffer.length >= batchSize) {
@@ -49,6 +77,11 @@ export class WalksService {
     }
 
     await this.prisma.walk.update({ where: { id: walkId }, data: { distanceMeters: distance } });
+    // Emit live points to subscribers
+    if (emitted.length) {
+      const fromSeq = emitted[0].seq;
+      this.emitPoints(walkId, fromSeq, emitted);
+    }
     return this.prisma.walk.findUnique({ where: { id: walkId } });
   }
 
@@ -60,6 +93,7 @@ export class WalksService {
     const endAt = new Date();
     const durationSeconds = Math.floor((endAt.getTime() - new Date(walk.startAt).getTime()) / 1000);
     const updated = await this.prisma.walk.update({ where: { id: walkId }, data: { endAt, durationSeconds } });
+    this.emitEnded(walkId);
     return updated;
   }
 
@@ -84,6 +118,17 @@ export class WalksService {
       where: { walkId },
       orderBy: { seq: 'asc' },
       take: limit,
+      select: { seq: true, lat: true, lng: true, recordedAt: true },
+    });
+    return points;
+  }
+
+  async getPointsAfter(walkId: string, fromSeq?: number) {
+    const exists = await this.prisma.walk.findUnique({ where: { id: walkId }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Walk not found');
+    const points = await this.prisma.walkPoint.findMany({
+      where: { walkId, ...(fromSeq ? { seq: { gt: fromSeq } } : {}) },
+      orderBy: { seq: 'asc' },
       select: { seq: true, lat: true, lng: true, recordedAt: true },
     });
     return points;

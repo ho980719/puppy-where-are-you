@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Sse, MessageEvent } from '@nestjs/common';
 import { WalksService } from './walks.service';
 import { WalkAppendDto, WalkGetQueryDto, WalkListQueryDto, WalkStartDto } from '../dto/walk.dto';
 import { ApiOkResponseData, ApiOkResponsePaginated } from '../common/swagger/responses';
 import { ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiResponse, Paginated } from '@puppy/shared';
+import { from, interval, map, merge } from 'rxjs';
 
 @ApiTags('walks')
 @Controller()
@@ -64,5 +65,19 @@ export class WalksController {
     const { userId, limit, cursor } = query as any;
     const res = await this.walks.listByUser(userId, limit ?? 20, cursor);
     return { items: res.items as any[], meta: { nextCursor: res.nextCursor } };
+  }
+
+  // Live stream for real-time path rendering
+  @Sse('walks/:id/stream')
+  @ApiParam({ name: 'id', required: true })
+  @ApiQuery({ name: 'fromSeq', required: false, description: 'Backfill points with seq > fromSeq before live updates' })
+  stream(@Param('id') id: string, @Query('fromSeq') fromSeq?: string): ReturnType<typeof merge> {
+    const startFrom = fromSeq ? Number(fromSeq) : undefined;
+    const backfill$ = from(this.walks.getPointsAfter(id, startFrom)).pipe(
+      map((items) => ({ data: { type: 'points', fromSeq: items[0]?.seq ?? ((startFrom ?? 0) + 1), items } } as MessageEvent)),
+    );
+    const live$ = this.walks.observe(id).pipe(map((e) => ({ data: e } as MessageEvent)));
+    const heartbeat$ = interval(15000).pipe(map(() => ({ data: { type: 'ping' } } as MessageEvent)));
+    return merge(backfill$, live$, heartbeat$);
   }
 }

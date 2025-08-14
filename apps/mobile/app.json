@@ -1,14 +1,43 @@
 {
   "expo": {
-    "name": "Puppy",
-    "slug": "puppy",
-    "version": "0.0.1",
-    "sdkVersion": "51.0.0",
+    "name": "mobile",
+    "slug": "mobile",
+    "version": "1.0.0",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
-    "updates": { "fallbackToCacheTimeout": 0 },
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
-    "android": {}
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "산책 경로를 기록하기 위해 위치가 필요합니다.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "앱이 백그라운드에서도 산책 경로를 기록합니다.",
+        "NSLocationAlwaysUsageDescription": "백그라운드 위치 기록용"
+      },
+      "backgroundModes": ["location"]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }
